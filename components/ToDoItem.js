@@ -11,6 +11,7 @@ export default class ToDoItem extends React.Component {
   }
 
   toggleEditingMode = () => {
+    console.log(this.props)
     this.setState((prevState)=>{
       if (this.props.text !== null) {
         return {

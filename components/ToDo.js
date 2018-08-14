@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import { StyleSheet, Text, View, ScrollView, Button, AsyncStorage, Alert } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Button, AsyncStorage, Alert } from 'react-native';
 import ToDoItem from './ToDoItem.js';
 
 
@@ -104,10 +104,12 @@ export default class ToDo extends Component {
 // -----------------------
 
   render () {
-    let items
-
+    let items = this.state.items.map((item, i) => {
+      item.idx = i
+      return item
+    })
+    let filteredItems = items
     if (this.state.items.length > 0) {
-      let filteredItems = this.state.items
       // only show incomplete tasks if user has hit
       if (!this.state.showComplete) filteredItems = this.state.items.filter(item => !item.complete)
       items = filteredItems.map((item, i) => {
@@ -128,15 +130,25 @@ export default class ToDo extends Component {
     else {items = <Text>You have nothing to do!</Text>}
 
     return (
-      <View>
+      <View style={styles.view}>
         <View style={styles.container}>
           <Button title="Add New" onPress={this.addBlankItem} />
           <Button title={this.state.showComplete ? 'Hide Completed' : 'Show Completed'} onPress={this.toggleShowComplete} />
           <Button title="Log Out" onPress={()=>{}} />
         </View>
-        <ScrollView style={styles.scrollView} keyboardShouldPersistTaps={true}>
-          {items}
-        </ScrollView>
+        <FlatList contentContainerStyle={styles.Flatlist}
+          data={filteredItems}
+          renderItem={({item}) => {
+            return (<ToDoItem
+                      {...item}
+                      showComplete={this.state.showComplete}
+                      toggleComplete={this.toggleComplete}
+                      editItem={this.editItem}
+                      deleteItem={this.deleteItem}
+                    />
+            )
+          }}
+        />
       </View>
       )
 
@@ -144,14 +156,21 @@ export default class ToDo extends Component {
 }
 
 const styles = StyleSheet.create({
+  view: {
+ flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
-  scrollView: {
-    height: '100%'
-  }
+  FlatList: {
+    flex: 7
+
+      }
 });
