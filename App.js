@@ -1,13 +1,31 @@
-import React from 'react';
+import React, {Component} from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import ToDo from './components/ToDo.js';
+import SignIn from './components/SignIn.js';
 
-export default class App extends React.Component {
+
+export default class App extends Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      user: null
+    }
+  }
+
+  setUser = (user) => {
+    this.setState({user: user})
+  }
+
   render() {
+    if (this.state.user) {
     return (
-      <View style={styles.container}>
-        <Text>Open up App.js to start working on your app!</Text>
-      </View>
+        <ToDo />
     );
+  }
+
+  return (
+    <ToDo />
+    )
   }
 }
 
@@ -19,3 +37,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
