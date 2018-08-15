@@ -9,6 +9,7 @@ export default class SignIn extends Component {
   }
 
   componentWillUnmount () {
+    // turn off loading screen when login is finished
     this.props.toggleLoadingScreen()
   }
 

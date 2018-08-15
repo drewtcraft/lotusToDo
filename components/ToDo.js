@@ -9,34 +9,45 @@ export default class ToDo extends Component {
     super(props);
     this.state = {
       showComplete: true,
-      items: [],
+      items: [{completed: false, text: 'sample to do item'}],
       uncommittedItems: []
     }
   }
 
   componentDidMount () {
-    // load items and settings on mounting
+    // load items and settings if the user has logged in before
     if (!this.props.firstTime) {
-    this.loadItems()
-    this.loadSettings()
+      this.loadItems()
+      this.loadSettings()
+    }
+    else {
+      this.saveItems()
+      this.saveSettings()
     }
   }
 
-  componentWillReceiveProps () {
-    //handleconnectivity change???
-
+  componentWillReceiveProps (nextProps) {
+    // if app reconnects, reconcile conflicting data
+    if (nextProps.connected) {
+      this.reconcileDatabase()
+    }
   }
 
-  reconcileDatabase = (uncommittedItems) => {
+
+  reconcileDatabase = async (uncommittedItems) => {
+    // reconcile offline data with database
     uncommittedItems.forEach((item) => {
       controller.addItem(this.props.user, item)
     })
+    // move from uncommitted items to items and empty uncommitted items
     this.setState((prevState) => {
       return {
         items: prevState.items.concat(uncommittedItems),
         uncommittedItems: []
       }
     })
+    // empty uncommitted items local storage
+    await AsyncStorage.setItem(`@MyStore:${this.props.user}/uncommittedItems`, '');
   }
 
   // retrieve items from local storage and database, with local storage holding precedence
@@ -50,20 +61,13 @@ export default class ToDo extends Component {
       const items = JSON.parse(itemsJSON)
       const uncommittedItems = JSON.parse(uncommittedItemsJSON)
 
-
       // if there are uncommitted items, commit them to the db
       if (uncommittedItems && this.props.connected) this.reconcileDatabase(uncommittedItems)
 
       // get all items from database
-      let getItemsFromDB = await controller.getAllItems(this.props.user)
+      let dbItems = await controller.getAllItems(this.props.user)
 
-      const dbItems = getItemsFromDB.filter((item) => {
-        return item.hasOwnProperty('completed')
-      })
-
-      console.log('dbitems', getItemsFromDB)
-
-
+      // set items and uncommitted items if they exist
       if (Array.isArray(items)) this.setState({items: items})
       if (Array.isArray(uncommittedItems)) this.setState({uncommittedItems: uncommittedItems})
       // if only the database is successful at retrieving items, use those
@@ -115,6 +119,7 @@ export default class ToDo extends Component {
     }
   }
 
+  // add to-do item to items if connected, or uncommitted items if not
   addBlankItem = async () => {
     const date = new Date()
     const newItem = {
@@ -136,6 +141,7 @@ export default class ToDo extends Component {
     }
   }
 
+  // toggle whether to show the completed items or not
   toggleShowComplete = async () => {
     await this.setState((prevState) => {
       return {showComplete: !prevState.showComplete}
@@ -147,10 +153,8 @@ export default class ToDo extends Component {
 // functions to be passed to toDoItems
 // -----------------------------------
 
-
-
   editItem = async (text, idx) => {
-    console.log(idx)
+    // if it is in this.state.items, add the item to the state and database, ignore blank items
     if (idx <= this.state.items.length - 1) {
       this.setState((prevState) => {
       let newItems = prevState.items.map((item, i) => {
@@ -163,8 +167,8 @@ export default class ToDo extends Component {
       return {items: newItems}
     })
     }
+    // if it is in uncommitted items, calculate the index, add the item, ignore blank items
     else {
-
       await this.setState((prevState) => {
         let newItems = prevState.uncommittedItems.map((item, i) => {
           const indexOffset = this.state.items.length
@@ -175,30 +179,35 @@ export default class ToDo extends Component {
 
       })
     }
-
+    // save locally
     this.saveItems()
-
   }
+
 
   deleteItem = async (idx) => {
-      if (idx <= this.state.items.length - 1) {
-        controller.deleteItem(this.props.user, this.state.items[idx].firebaseKey)
-        await this.setState((prevState) => {
-          const newItems = prevState.items.filter((item, i) => i !== idx)
-          return {items: newItems}
-        })
-      }
-      else {
-        await this.setState((prevState) => {
-          const indexOffset = this.state.items.length
-          const newItems = prevState.uncommittedItems.filter((item, i) => i !== idx - indexOffset)
-          return {uncommittedItems: newItems}
-        })
-      }
-      this.saveItems()
+    // if it is in this.state.items, delete the item from the database, then from state
+    if (idx <= this.state.items.length - 1) {
+      controller.deleteItem(this.props.user, this.state.items[idx].firebaseKey)
+      await this.setState((prevState) => {
+        const newItems = prevState.items.filter((item, i) => i !== idx)
+        return {items: newItems}
+      })
+    }
+    // if it is uncommitted, remove from state
+    else {
+      await this.setState((prevState) => {
+        const indexOffset = this.state.items.length
+        const newItems = prevState.uncommittedItems.filter((item, i) => i !== idx - indexOffset)
+        return {uncommittedItems: newItems}
+      })
+    }
+    // save locally
+    this.saveItems()
   }
 
+
   toggleComplete = async (idx) => {
+    // if it is in this.state.items, toggle completed, then save to database
     if (idx <= this.state.items.length - 1) {
       await this.setState((prevState) => {
         const items = prevState.items.map((item, i) => {
@@ -211,6 +220,7 @@ export default class ToDo extends Component {
         return {items: items}
       })
     }
+    // if it is uncommitted toggle completed
     else {
       await this.setState((prevState) => {
        const items = prevState.uncommittedItems.map((item, i) => {
@@ -221,6 +231,7 @@ export default class ToDo extends Component {
         return {uncommittedItems: items}
       })
     }
+    //save locally
     this.saveItems()
   }
 
@@ -233,21 +244,25 @@ export default class ToDo extends Component {
     let cells
 
     if (this.state.items.length > 0 || this.state.uncommittedItems.length > 0) {
-    let allItems = []
-    this.state.items.forEach((item) => allItems.push(item))
-    this.state.uncommittedItems.forEach((item) => allItems.push(item))
 
+      let allItems = []
 
+      // for some reason Array.concat fails here, but forEach succeeds
+      this.state.items.forEach((item) => allItems.push(item))
+      this.state.uncommittedItems.forEach((item) => allItems.push(item))
 
+      // add indexes to items
       let items = allItems.map((item, i) => {
         item.idx = i
         return item
       })
 
+      // filter for incomplete items if applicable
       if (!this.state.showComplete) {
         items = items.filter((item) =>{ return !item.completed})
       }
 
+      // create array of ToDoItems
       cells = items.map((item, i) => {
         return (<ToDoItem
                         {...item}
@@ -259,6 +274,7 @@ export default class ToDo extends Component {
         )
       })
     }
+    // if no data, display message to user
     else if (this.state.items.length === 0 && this.state.uncommittedItems.length === 0) {
       cells = (<Text>You have nothing to do!</Text>)
     }

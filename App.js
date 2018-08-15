@@ -2,7 +2,6 @@ import React, {Component} from 'react';
 import { StyleSheet, Text, View, Alert, NetInfo, AsyncStorage } from 'react-native';
 import ToDo from './components/ToDo.js';
 import SignIn from './components/SignIn.js';
-import Loading from './components/Loading.js'
 import { Facebook } from 'expo';
 import firebase from './db/connection.js'
 
@@ -20,9 +19,11 @@ export default class App extends Component {
   }
 
   componentDidMount () {
+    // listen to connection status
     NetInfo.isConnected.addEventListener('connectionChange', this.handleConnectionChange)
   }
 
+  // check and see if user has logged in before
   checkForToken = async (user) => {
     try {
       const token = await AsyncStorage.getItem(`@MyStore:${user}token`);
@@ -61,16 +62,13 @@ export default class App extends Component {
       permissions: ['public_profile'],
     });
 
+    // make sure user has not closed the facebook login window
     if (type, token) {
-
+      // start loading screen during time consuming operations
       this.toggleLoadingScreen()
-
       const credential = await firebase.auth.FacebookAuthProvider.credential(token);
-
       const user = await firebase.auth().signInAndRetrieveDataWithCredential(credential).catch((err)=>{console.log(err)})
-
       this.checkForToken(user.user.uid)
-
     }
   }
 
@@ -97,8 +95,6 @@ export default class App extends Component {
       />
     )
     }
-
-
 
 }
 

@@ -10,9 +10,6 @@ export default class ToDoItem extends React.Component {
     }
   }
 
-  componentDidMount () {
-  }
-
   toggleEditingMode = () => {
     this.setState((prevState)=>{
       if (this.props.text !== null) {
@@ -37,6 +34,7 @@ export default class ToDoItem extends React.Component {
   }
 
   render () {
+    // to-do item form for editing
     if (this.state.editing || this.props.text === null) {
       return (
         <View keyboardShouldPersistTaps="always" style={styles.row}>
@@ -50,6 +48,7 @@ export default class ToDoItem extends React.Component {
       )
     }
 
+    // to-do item normal display
     return (
         <View style={styles.row}>
           <View style={styles.container}>
